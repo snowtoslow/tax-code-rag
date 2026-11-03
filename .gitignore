@@ -12,3 +12,5 @@ wheels/
 /src/docling_pdf/chroma_db
 /input
 .idea
+/src/docling_pdf/chroma_db_html
+/src/docling_pdf/output
