@@ -1,0 +1,22 @@
+[project]
+name = "docling-pdf"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "snowtoslow", email = "snowtoslow@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "chromadb>=0.3.23",
+    "docling>=2.145.0",
+    "google-genai>=2.34.0",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+docling-pdf = "docling_pdf:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

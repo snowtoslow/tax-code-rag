@@ -1,0 +1,137 @@
+# docling-pdf
+
+A small Retrieval-Augmented Generation (RAG) project that answers questions about PDF documents.
+
+1. **Parse** a PDF with [Docling](https://github.com/docling-project/docling)
+2. **Chunk** it with Docling's structure-aware `HybridChunker`
+3. **Index** the chunks in a local [Chroma](https://www.trychroma.com/) vector database
+4. **Retrieve** the chunks most relevant to a question
+5. **Generate** an answer with Google Gemini, with citations to the source chunks
+
+Everything except the final answer generation runs locally.
+
+## Requirements
+
+- [uv](https://docs.astral.sh/uv/) (Python package and project manager)
+- Python 3.10-3.13 (the project pins **3.12**; uv downloads it automatically if needed)
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
+- Roughly 5 GB of free disk space (Docling pulls in PyTorch and downloads ML models on first run)
+
+> **Note:** Avoid Python 3.14+ for now. Some dependencies (such as `chromadb`) may not have compatible builds yet, and uv can silently fall back to a very old, broken version.
+
+## Download
+
+Sample documents and any other files needed to try the project:
+
+**Download URL:** `https://www.legis.md/cautare/getResults?doc_id=79111&lang=ro`
+
+```bash
+# Example: download a sample PDF into the input/ folder
+mkdir -p input
+mv donwloaded_file.pdf input
+```
+
+## Getting started
+
+### 1. Install dependencies
+
+```bash
+uv sync
+```
+
+This creates a `.venv` using the Python version from `.python-version` and installs everything from `uv.lock`.
+
+### 2. Configure environment variables
+
+Copy the template and fill in your key:
+
+```bash
+cp .env.example .env
+```
+
+```env
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
+```
+
+| Variable | Description |
+| --- | --- |
+| `GEMINI_API_KEY` | Your Google AI Studio API key (required) |
+| `GEMINI_MODEL` | Primary model used for answers (required) |
+| `GEMINI_FALLBACK_MODEL` | Used if the primary model is overloaded (required) |
+| `HF_TOKEN` | Optional. Hugging Face read token for faster first-time model downloads |
+
+Model names change over time. To list the models available to your key:
+
+```bash
+uv run python -c "from google import genai; [print(m.name) for m in genai.Client().models.list()]"
+```
+
+`.env` is gitignored. Never commit your API key.
+
+## Usage
+
+### Ingest a PDF
+
+Parses the document, chunks it, and stores the chunks in `chroma_db/`:
+
+```bash
+uv run python -m docling_pdf.ingest input/sample.pdf
+```
+
+Quote paths that contain spaces. To ingest several files:
+
+```bash
+for f in input/*.pdf; do uv run python -m docling_pdf.ingest "$f"; done
+```
+
+Re-running on the same file updates existing chunks instead of duplicating them.
+
+### Ask a question
+
+```bash
+uv run python -m docling_pdf.query "What does the document say about ...?"
+```
+
+The answer is generated from the retrieved chunks and cites its sources as `[1]`, `[2]`, and so on, each with a page number and section heading.
+
+## First run
+
+The first run is slow. Expect these one-time downloads, which are cached afterwards:
+
+- Docling layout and table-structure models (from Hugging Face)
+- Chroma's default embedding model (`all-MiniLM-L6-v2`)
+
+A warning about unauthenticated Hugging Face requests is harmless. Set `HF_TOKEN` to silence it and speed up downloads.
+
+## Project structure
+
+```
+docling-pdf/
+├── src/docling_pdf/
+    ├── chroma_db/         # local vector store (gitignored, rebuilt by ingest)
+│   ├── __init__.py
+│   ├── ingest.py      # parse -> chunk -> embed -> store
+│   └── query.py       # retrieve -> generate
+├── input/             # your PDFs (gitignored)
+├── .env               # secrets (gitignored)
+├── .env.example       # template for .env
+├── .python-version
+├── pyproject.toml
+└── uv.lock
+```
+
+## Troubleshooting
+
+```bash
+uv python pin 3.12
+rm -rf .venv uv.lock
+uv sync
+```
+
+## Development notes
+
+- Commit `pyproject.toml`, `uv.lock`, and `.python-version`. Do not commit `.env`, `chroma_db/`, or private PDFs.
+- Add dependencies with `uv add <package>` and dev-only tools with `uv add --dev <package>`.
+- Chroma's default embedding model is English-focused. For non-English documents (for example Romanian), consider a multilingual embedder such as `bge-m3` or `multilingual-e5`, then re-ingest, because vectors from different models are not compatible.
