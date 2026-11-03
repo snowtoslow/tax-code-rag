@@ -72,6 +72,29 @@ uv run python -c "from google import genai; [print(m.name) for m in genai.Client
 
 ## Usage
 
+### Multilingual HTML retrieval
+
+HTML ingestion and querying use `BAAI/bge-m3` through Sentence Transformers,
+with normalized embeddings and a separate `docs_bge_m3` collection. The original
+`docs` collection is preserved. The PDF ingestion script still uses the original
+collection; the query script now targets the multilingual HTML collection.
+
+Install the added dependency and rebuild the HTML index before querying:
+
+```bash
+uv sync
+CHROMA_PATH=src/docling_pdf/chroma_db_html uv run python -m docling_pdf.ingest_html input/page.html
+CHROMA_PATH=src/docling_pdf/chroma_db_html uv run python -m docling_pdf.query "Care este poziția tarifară a caviarului?"
+```
+
+Run these commands from the project root. The first embedding operation downloads
+the model; BGE-M3 uses more memory and processing time than the original MiniLM
+model. Querying before re-ingestion will fail because the new collection does
+not exist yet. The dependency lockfile must be refreshed by `uv sync`.
+
+This change uses BGE-M3's dense embeddings only. Table chunking is unchanged;
+retrieval quality still needs to be checked against representative questions.
+
 ### Ingest a PDF
 
 Parses the document, chunks it, and stores the chunks in `chroma_db/`:
@@ -135,3 +158,35 @@ uv sync
 - Commit `pyproject.toml`, `uv.lock`, and `.python-version`. Do not commit `.env`, `chroma_db/`, or private PDFs.
 - Add dependencies with `uv add <package>` and dev-only tools with `uv add --dev <package>`.
 - Chroma's default embedding model is English-focused. For non-English documents (for example Romanian), consider a multilingual embedder such as `bge-m3` or `multilingual-e5`, then re-ingest, because vectors from different models are not compatible.
+
+- Script for good display download:
+```js
+const html = document.querySelector("div.docx").outerHTML;
+const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+const url = URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+a.href = url;
+a.download = "page.html";
+a.click();
+
+URL.revokeObjectURL(url);
+```
+
+- Python script for running ingestion using ingest_html.py 
+```python
+    uv run ingest_html.py /Users/snowtoslow/Desktop/projects/docling-pdf/input/page.html
+```
+
+### Observations:
+1. PDF vs HTML source(HTML MUCH BETTER, BECAUSE IT PRESERVES THE TABLE STRUCTURE WHICH WAS A MESS WITH PDF)
+2. EMBEDDING MODEL SELECTION 
+   * The chromadb embedding model set by default all-MiniLM-L6-v2 produces 
+     384-dimensional vectors and is primarily English-focused; (ingestion result: Indexed 1911 chunks from tax-code.pdf)
+   * Fine tunned it to BAAI/bge-m3 which works better in multilingual environment (ingestion result: page.html: 1925 chunks, 11 tables, 5 headings)
+   
+
+
+### Questions: 
+1. uv run query.py "Care este poziția tarifară a caviarului?" => was ok on initial setup
+2. uv run query.py "Care este cota accizelor pentru caviar in anul 2026?" => 1024 tokens
