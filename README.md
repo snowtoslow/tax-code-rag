@@ -187,6 +187,5 @@ URL.revokeObjectURL(url);
    
 
 
-### Questions: 
-1. uv run query.py "Care este poziția tarifară a caviarului?" => was ok on initial setup
-2. uv run query.py "Care este cota accizelor pentru caviar in anul 2026?" => 1024 tokens
+### [Questions](HARD_QUESTIONS.md)
+1. The `page.md` can be generated using [__init__.py](src/docling_pdf/__init__.py) *path-to-downloaded-source-using-js-script*
