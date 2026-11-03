@@ -14,3 +14,4 @@ wheels/
 .idea
 /src/docling_pdf/chroma_db_html
 /src/docling_pdf/output
+/tests
