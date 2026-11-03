@@ -1,46 +1,73 @@
-"""Parse a PDF, chunk it with Docling, and index the chunks in Chroma."""
+"""Parse HTML with Docling, chunk it, and index the chunks in Chroma."""
 
 import sys
+from io import BytesIO
 from pathlib import Path
 
 import chromadb
+from bs4 import BeautifulSoup
 from docling.chunking import HybridChunker
+from docling.datamodel.base_models import DocumentStream
 from docling.document_converter import DocumentConverter
 
+from dotenv import load_dotenv
 
-def ingest(source: str, collection_name: str = "docs") -> None:
-    doc = DocumentConverter().convert(source).document
+from docling_pdf.embeddings import COLLECTION_NAME, embedding_function
 
+import os
+
+load_dotenv()
+CHROMA_PATH = os.environ["CHROMA_PATH"]
+
+# mPDF-specific, non-standard tags that would leak into the text
+MPDF_TAGS = [
+    "htmlpageheader", "htmlpagefooter", "sethtmlpageheader", "sethtmlpagefooter",
+    "setpageheader", "setpagefooter", "pagebreak", "tocentry", "bookmark",
+    "indexentry", "annotation", "script", "style", "nav",
+]
+
+
+def clean_html(path: Path) -> str:
+    soup = BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
+    for tag in soup.find_all(MPDF_TAGS):
+        tag.decompose()
+    return str(soup)
+
+
+def ingest(paths: list[Path], collection_name: str = COLLECTION_NAME) -> None:
+    converter = DocumentConverter()
     chunker = HybridChunker()
-    chunks = list(chunker.chunk(dl_doc=doc))
+    collection = chromadb.PersistentClient(path=CHROMA_PATH).get_or_create_collection(
+        collection_name,
+        embedding_function=embedding_function(),
+        metadata={"hnsw:space": "cosine"},
+    )
 
-    ids, texts, metadatas = [], [], []
-    for i, chunk in enumerate(chunks):
-        # contextualize() prepends headings, which improves retrieval quality
-        text = chunker.contextualize(chunk=chunk)
-
-        pages = sorted(
-            {
-                prov.page_no
-                for item in chunk.meta.doc_items
-                for prov in item.prov
-            }
+    for path in paths:
+        stream = DocumentStream(
+            name=path.name, stream=BytesIO(clean_html(path).encode("utf-8"))
         )
-        ids.append(f"{Path(source).stem}-{i}")
-        texts.append(text)
-        metadatas.append(
-            {
-                "source": source,
-                "headings": " > ".join(chunk.meta.headings or []),
-                "page": pages[0] if pages else -1,
-            }
-        )
+        doc = converter.convert(stream).document
+        chunks = list(chunker.chunk(dl_doc=doc))
 
-    client = chromadb.PersistentClient(path="chroma_db")
-    collection = client.get_or_create_collection(collection_name)
-    collection.upsert(ids=ids, documents=texts, metadatas=metadatas)
-    print(f"Indexed {len(chunks)} chunks from {source}")
+        ids, texts, metadatas = [], [], []
+        for i, chunk in enumerate(chunks):
+            ids.append(f"{path.stem}-{i}")
+            texts.append(chunker.contextualize(chunk=chunk))
+            metadatas.append(
+                {
+                    "source": path.name,
+                    "headings": " > ".join(chunk.meta.headings or []),
+                }
+            )
+
+        collection.upsert(ids=ids, documents=texts, metadatas=metadatas)
+        print(
+            f"{path.name}: {len(chunks)} chunks, "
+            f"{len(doc.tables)} tables, "
+            f"{sum(1 for t in doc.texts if t.label == 'section_header')} headings"
+        )
 
 
 if __name__ == "__main__":
-    ingest(sys.argv[1])
+    ingest([Path(p) for p in sys.argv[1:]])

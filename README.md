@@ -173,6 +173,15 @@ a.click();
 URL.revokeObjectURL(url);
 ```
 
-- ```python
+- Python script for running ingestion using ingest_html.py 
+```python
     uv run ingest_html.py /Users/snowtoslow/Desktop/projects/docling-pdf/input/page.html
 ```
+
+### Observations:
+1. PDF vs HTML source(HTML MUCH BETTER, BECAUSE IT PRESERVES THE TABLE STRUCTURE WHICH WAS A MESS WITH PDF)
+2. EMBEDDING MODEL SELECTION 
+   * The chromadb embedding model set by default all-MiniLM-L6-v2 produces 
+     384-dimensional vectors and is primarily English-focused; (ingestion result: Indexed 1911 chunks from tax-code.pdf)
+   * Fine tunned it to BAAI/bge-m3 which works better in multilingual environment (ingestion result: page.html: 1925 chunks, 11 tables, 5 headings)
+   
