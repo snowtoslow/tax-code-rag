@@ -9,10 +9,13 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import errors, types
 
+from docling_pdf.embeddings import COLLECTION_NAME, embedding_function
+
 load_dotenv()
 
 MODEL = os.environ["GEMINI_MODEL"]
 FALLBACK_MODEL = os.environ["GEMINI_FALLBACK_MODEL"]
+CHROMA_PATH = os.environ["CHROMA_PATH"]
 
 SYSTEM_PROMPT = (
     "Answer using only the provided context. Cite sources like [1], [2]. "
@@ -42,12 +45,14 @@ def generate_with_retry(client, contents: str, retries: int = 4) -> str:
     raise RuntimeError("Gemini is unavailable on all configured models. Try again later.")
 
 
-def answer(question: str, k: int = 5) -> str:
-    collection = chromadb.PersistentClient(path="chroma_db").get_collection("docs")
+def answer(question: str, k: int = 12) -> str:
+    collection = chromadb.PersistentClient(path=CHROMA_PATH).get_collection(
+        COLLECTION_NAME, embedding_function=embedding_function()
+    )
     hits = collection.query(query_texts=[question], n_results=k)
 
     context = "\n\n".join(
-        f"[{n}] (page {meta['page']}, {meta['headings']})\n{doc}"
+        f"[{n}] ({meta['source']}, {meta['headings']})\n{doc}"
         for n, (doc, meta) in enumerate(
             zip(hits["documents"][0], hits["metadatas"][0]), start=1
         )
