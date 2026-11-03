@@ -185,3 +185,8 @@ URL.revokeObjectURL(url);
      384-dimensional vectors and is primarily English-focused; (ingestion result: Indexed 1911 chunks from tax-code.pdf)
    * Fine tunned it to BAAI/bge-m3 which works better in multilingual environment (ingestion result: page.html: 1925 chunks, 11 tables, 5 headings)
    
+
+
+### Questions: 
+1. uv run query.py "Care este poziția tarifară a caviarului?" => was ok on initial setup
+2. uv run query.py "Care este cota accizelor pentru caviar in anul 2026?" => 1024 tokens

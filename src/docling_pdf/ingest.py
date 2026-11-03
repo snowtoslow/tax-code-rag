@@ -9,10 +9,11 @@ from bs4 import BeautifulSoup
 from docling.chunking import HybridChunker
 from docling.datamodel.base_models import DocumentStream
 from docling.document_converter import DocumentConverter
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 
 from dotenv import load_dotenv
 
-from docling_pdf.embeddings import COLLECTION_NAME, embedding_function
+from docling_pdf.embeddings import COLLECTION_NAME, EMBEDDING_MODEL, embedding_function
 
 import os
 
@@ -36,7 +37,12 @@ def clean_html(path: Path) -> str:
 
 def ingest(paths: list[Path], collection_name: str = COLLECTION_NAME) -> None:
     converter = DocumentConverter()
-    chunker = HybridChunker()
+    # chunker = HybridChunker()
+    tokenizer = HuggingFaceTokenizer.from_pretrained(
+        model_name=EMBEDDING_MODEL,
+        max_tokens=1024,
+    )
+    chunker = HybridChunker(tokenizer=tokenizer)
     collection = chromadb.PersistentClient(path=CHROMA_PATH).get_or_create_collection(
         collection_name,
         embedding_function=embedding_function(),
