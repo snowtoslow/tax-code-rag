@@ -1,6 +1,6 @@
-# docling-pdf
+# tax-code-rag
 
-A small Retrieval-Augmented Generation (RAG) project that answers questions about PDF documents.
+A small Retrieval-Augmented Generation (RAG) project that answers questions about Moldavian Tax code based on single document.
 
 1. **Parse** a PDF with [Docling](https://github.com/docling-project/docling)
 2. **Chunk** it with Docling's structure-aware `HybridChunker`
@@ -51,8 +51,8 @@ cp .env.example .env
 
 ```env
 GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash
-GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-3.5-flash
+GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite
 ```
 
 | Variable | Description |
@@ -175,7 +175,7 @@ URL.revokeObjectURL(url);
 
 - Python script for running ingestion using ingest_html.py 
 ```python
-    uv run ingest_html.py /Users/snowtoslow/Desktop/projects/docling-pdf/input/page.html
+    uv run ingest_html.py ../../../projects/docling-pdf/input/page.html
 ```
 
 ### Observations:
