@@ -185,6 +185,8 @@ URL.revokeObjectURL(url);
    * The chromadb embedding model set by default all-MiniLM-L6-v2 produces 
      384-dimensional vectors and is primarily English-focused; (ingestion result: Indexed 1911 chunks from tax-code.pdf)
    * Fine tunned it to BAAI/bge-m3 which works better in multilingual environment (ingestion result: page.html: 1925 chunks, 11 tables, 5 headings)
+3. LLMS performance: I've currently tested Gemini & Cohere, and observer that Cohere last models is much better in answering,
+                     but we also must take into consideration that I've chosen frontier cohere model, comparing to gemini one
    
 
 
