@@ -16,6 +16,7 @@ Everything except the final answer generation runs locally.
 - Python 3.10-3.13 (the project pins **3.12**; uv downloads it automatically if needed)
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 - Roughly 5 GB of free disk space (Docling pulls in PyTorch and downloads ML models on first run)
+- Useful links: [RAG for dummies](https://habr.com/ru/articles/779526/)
 
 > **Note:** Avoid Python 3.14+ for now. Some dependencies (such as `chromadb`) may not have compatible builds yet, and uv can silently fall back to a very old, broken version.
 
