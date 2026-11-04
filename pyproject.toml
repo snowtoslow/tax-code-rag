@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.15.0",
     "chromadb>=0.3.23",
+    "cohere>=5.0.0,<6",
     "docling>=2.145.0",
     "google-genai>=2.34.0",
     "python-dotenv>=1.2.4",

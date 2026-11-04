@@ -1,21 +1,15 @@
-"""Retrieve relevant chunks and answer a question with Gemini."""
+"""Retrieve relevant chunks and answer using the configured generation provider."""
 
 import os
 import sys
-import time
 
 import chromadb
 from dotenv import load_dotenv
-from google import genai
-from google.genai import errors, types
 
+from docling_pdf.clients import AnswerClient, create_client
 from docling_pdf.embeddings import COLLECTION_NAME, embedding_function
 
 load_dotenv()
-
-MODEL = os.environ["GEMINI_MODEL"]
-FALLBACK_MODEL = os.environ["GEMINI_FALLBACK_MODEL"]
-CHROMA_PATH = os.environ["CHROMA_PATH"]
 
 SYSTEM_PROMPT = (
     "Answer using only the provided context. Cite sources like [1], [2]. "
@@ -24,29 +18,13 @@ SYSTEM_PROMPT = (
 )
 
 
-def generate_with_retry(client, contents: str, retries: int = 4) -> str:
-    config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_PROMPT,
-        temperature=0.2,
-    )
-    for model in (MODEL, FALLBACK_MODEL):
-        for attempt in range(retries):
-            try:
-                response = client.models.generate_content(
-                    model=model, contents=contents, config=config
-                )
-                return response.text
-            except errors.ServerError as e:  # 5xx: overloaded / unavailable
-                wait = 2**attempt  # 1s, 2s, 4s, 8s
-                print(f"[{model}] {e.code} (attempt {attempt + 1}/{retries}), "
-                      f"retrying in {wait}s...", file=sys.stderr)
-                time.sleep(wait)
-        print(f"[{model}] still unavailable, trying fallback...", file=sys.stderr)
-    raise RuntimeError("Gemini is unavailable on all configured models. Try again later.")
+def generate_answer(contents: str, *, client: AnswerClient | None = None) -> str:
+    generator = client if client is not None else create_client()
+    return generator.generate(contents=contents, system_prompt=SYSTEM_PROMPT)
 
 
-def answer(question: str, k: int = 12) -> str:
-    collection = chromadb.PersistentClient(path=CHROMA_PATH).get_collection(
+def answer(question: str, k: int = 12, *, client: AnswerClient | None = None) -> str:
+    collection = chromadb.PersistentClient(path=os.environ["CHROMA_PATH"]).get_collection(
         COLLECTION_NAME, embedding_function=embedding_function()
     )
     hits = collection.query(query_texts=[question], n_results=k)
@@ -58,9 +36,8 @@ def answer(question: str, k: int = 12) -> str:
         )
     )
 
-    client = genai.Client()  # reads GEMINI_API_KEY
-    return generate_with_retry(
-        client, f"Context:\n{context}\n\nQuestion: {question}"
+    return generate_answer(
+        f"Context:\n{context}\n\nQuestion: {question}", client=client,
     )
 
 
